@@ -13,25 +13,25 @@ height, width, channels = image.shape
 print(height, width, channels)
 
 
-frame = 4 # rozmiar pojedynczej ramki
+frame = 2 # rozmiar pojedynczej ramki
 ile_neuronow = 4
-ile_ramek_treningowych = 80
+ile_ramek_treningowych = 100
 
 # współczynnik uczenia
-eta = 0.01
+eta = 0.1
 
 ile_blokow = int(((512/frame)**2))
 
-def normalizacja_wektora(input):
-	if sum(input.flatten()) != 0:
-		#return input.flatten()/sum(input.flatten())
-		return input/sum(input)
-	else:
-		return 0
+def v_norm(input):
+    norm = np.linalg.norm(input)
+    if norm == 0: 
+       return input
+    return input / norm
+
 
 dim = (512, 512)
 resized = cv2.resize(image, dim, interpolation = cv2.INTER_AREA)
-cv2.imshow("", resized)
+#cv2.imshow("", resized)
 (Blue, Green, Red) = cv2.split(resized)
 
 print("Obraz podzielono na %s bloków"% ile_blokow)
@@ -41,8 +41,8 @@ for x in range(0, 511, frame):
 	for y in range(0, 511, frame):
 		puzzle.append(Red[x:x+frame,y:y+frame])	# ? .flatten()
 
+# pobierane wartości są typu integer, jednak w toku obliczeń pojawia się typ float
 puzzle = np.array(puzzle).astype(float)
-
 
 # tutaj budujemy macierz wektorów normalizowanych, aby nie liczyć wielokrotnie - może się przyda?
 # puzzle_norm = []
@@ -60,8 +60,6 @@ for i in range(ile_neuronow):
 neurony = np.array(neurony)
 print("Wyznaczono neurony: %s"% ile_neuronow)
 print(neurony)
-print(type(neurony))
-
 
 training_set = []
 for i in range(ile_ramek_treningowych):
@@ -71,57 +69,40 @@ for i in range(ile_ramek_treningowych):
 print("Wyznaczono training set: %s"% ile_ramek_treningowych)
 training_set=np.array(training_set)
 print(training_set)
-print(type(training_set))
-
 # dla każdego neuronu znajdujemy najbliższą ramkę z training setu, wyznaczamy Best Matching Unit 
 
-for k in range(5):
+
+for k in range(100):
 	print("Krok %s"% k)
+	
 	BMU = []
 	for i in range(ile_neuronow):
 		distance = []
 		for j in range(ile_ramek_treningowych):
-			#print(i,j)
-			# do porównania w locie normalizujemy wskazane wektory neuronu i ramki obrazu
-			# odl = [i, j, sum(normalizacja_wektora(neurony[i])*(normalizacja_wektora((training_set[j]))))]
-			# print("Neuron")
-			# print(normalizacja_wektora(neurony[i]))
-			# print("Ramka")
-			# print(normalizacja_wektora((training_set[j])))
-			suma_wazona_wek = normalizacja_wektora(neurony[i]).dot(normalizacja_wektora(training_set[j]))
-			# print("Iloczyn")
-			# print(iloczyn_wek)
-			odl = [i, j, suma_wazona_wek]
+			#suma_wazona_wek = norm_v(neurony[i]).dot(norm_v(training_set[j]))
+			dist = np.linalg.norm(neurony[i] - training_set[j])
+			odl = [i, j, dist]
 			distance.append(odl)
-		#distance = np.array(distance)
 		BMU.append((min(distance, key=lambda x: x[2])))	
-	print("BMU")
-	print(type(BMU))
-	
+	#print(BMU)		
+
 	for each in range(len(BMU)):
-	 	#new_neuron = (neurony[BMU[each][0]] + eta * (neurony[BMU[each][0]]-puzzle[BMU[each][1]]))
 		print("stary neuron")
-		print(type(neurony[BMU[each][0]]))
+		print(neurony[BMU[each][0]])
 		print("ramka z training set")
-		print(training_set[BMU[each][1]])
-		new_neuron = neurony[BMU[each][0]] + eta * (neurony[BMU[each][0]] - training_set[BMU[each][1]])
+		print(training_set[BMU[each][1]])		
+		
+		new_neuron = neurony[BMU[each][0]] + eta * (training_set[BMU[each][1]] - neurony[BMU[each][0]])
+		
 		print("nowy neuron")
 		print(new_neuron)
-		#new_neuron = np.array(new_neuron)
-#		cos = [1.2,2.3,3,4,5,6,7,8,9,0,1,2,3,4,5,6]
-#		new_neuron = new_neuron.tolist()
-#		print(type(new_neuron))
-		#print(cos)
+
 		print("Przypisanie do tablicy neuronów")
 		neurony[BMU[each][0]] = new_neuron
 		print(neurony[BMU[each][0]])
 
-	 	#print(neurony[BMU[each][0]])
-	 	#print(puzzle[BMU[each][1]])
-		
-	 	
-	 	
-	 	#print(neurony[BMU[0][0]])
+print("Nauczone neurony")
+print(neurony)
 
 
 # array([ 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15])
@@ -202,5 +183,5 @@ for k in range(5):
 
 
 
-cv2.waitKey(0)
-cv2.destroyAllWindows()
+#cv2.waitKey(0)
+#cv2.destroyAllWindows()

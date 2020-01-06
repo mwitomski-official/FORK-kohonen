@@ -2,25 +2,24 @@ import cv2
 import numpy as np
 import random as rand
 
-path = 'obrazy/lena.png'
-#path = 'obrazy/black.png'
-#path = 'obrazy/black_3_white_squares.png'
-#path = 'obrazy/white.png'
+#path = 'obrazy/lena.png'
+#path = 'obrazy/parrot.png'
+path = 'obrazy/rm.png'
 
-image = cv2.imread(path)
-
-height, width, channels = image.shape
-print(height, width, channels)
-
-
-frame = 2 # rozmiar pojedynczej ramki
-ile_neuronow = 4
-ile_ramek_treningowych = 100
-
-# współczynnik uczenia
+frame = 4 # rozmiar pojedynczej ramki
+ile_neuronow = 48
+ile_ramek_treningowych = 2048
 eta = 0.1
 
-ile_blokow = int(((512/frame)**2))
+epoki = 100
+
+image = cv2.imread(path)
+height, width, channels = image.shape
+
+# print("Ścieżka obrazu: %s"% path)
+# print("wysokość: %s, szerokość: %s, kanały: %s"% height, width, channels)
+# print("\n")
+# print("Rozmiar ramki: %s, Neurony: %s, Training set: %s, Eta: %s"% frame, ile_neuronow, ile_ramek_treningowych, eta)
 
 def v_norm(input):
     norm = np.linalg.norm(input)
@@ -28,6 +27,11 @@ def v_norm(input):
        return input
     return input / norm
 
+ile_wierszy = int(512/frame)
+ile_kolumn = int(512/frame)
+
+#ile_blokow = int(((512/frame)**2))
+ile_blokow = ile_wierszy*ile_kolumn
 
 dim = (512, 512)
 resized = cv2.resize(image, dim, interpolation = cv2.INTER_AREA)
@@ -36,22 +40,16 @@ resized = cv2.resize(image, dim, interpolation = cv2.INTER_AREA)
 
 print("Obraz podzielono na %s bloków"% ile_blokow)
 
-puzzle = [] # rameczki
+# Podział tablicy wg parametru frame na mniejsze kwadraty
+puzzle = [] 
 for x in range(0, 511, frame):
 	for y in range(0, 511, frame):
-		puzzle.append(Red[x:x+frame,y:y+frame])	# ? .flatten()
+		puzzle.append(Red[x:x+frame,y:y+frame])	
 
-# pobierane wartości są typu integer, jednak w toku obliczeń pojawia się typ float
+# pobierane wartości są typu integer, jednak w toku obliczeń pojawia się typ float - aby nie utracić informacji, zmieniamy typ danych w tablicy puzzle na float
 puzzle = np.array(puzzle).astype(float)
 
-# tutaj budujemy macierz wektorów normalizowanych, aby nie liczyć wielokrotnie - może się przyda?
-# puzzle_norm = []
-# for i in range(ile_blokow):
-# 	puzzle_norm.append(normalizacja_wektora(puzzle[i]))
-
-# otrzymujemy tablicę spłaszczonych wektorów normalizowanych puzzle_norm
-# budujemy macierz neuronów "startowych", czyli tak naprawdę losujemy indexy ramek z puzzle[]
-
+# losujemy wskazaną liczbę neuronów startowych
 neurony = []
 for i in range(ile_neuronow):
 	r = rand.randint(0,	ile_blokow-1) 
@@ -59,8 +57,8 @@ for i in range(ile_neuronow):
 
 neurony = np.array(neurony)
 print("Wyznaczono neurony: %s"% ile_neuronow)
-print(neurony)
 
+# generujemy Training set - wskazaną liczbę ramek z obrazu źródłowego 
 training_set = []
 for i in range(ile_ramek_treningowych):
 	r = rand.randint(0,ile_ramek_treningowych)
@@ -68,18 +66,13 @@ for i in range(ile_ramek_treningowych):
 
 print("Wyznaczono training set: %s"% ile_ramek_treningowych)
 training_set=np.array(training_set)
-print(training_set)
+
 # dla każdego neuronu znajdujemy najbliższą ramkę z training setu, wyznaczamy Best Matching Unit 
-
-
-for k in range(100):
-	print("Krok %s"% k)
-	
+for k in range(epoki):
 	BMU = []
 	for i in range(ile_neuronow):
 		distance = []
 		for j in range(ile_ramek_treningowych):
-			#suma_wazona_wek = norm_v(neurony[i]).dot(norm_v(training_set[j]))
 			dist = np.linalg.norm(neurony[i] - training_set[j])
 			odl = [i, j, dist]
 			distance.append(odl)
@@ -87,101 +80,51 @@ for k in range(100):
 	#print(BMU)		
 
 	for each in range(len(BMU)):
-		print("stary neuron")
-		print(neurony[BMU[each][0]])
-		print("ramka z training set")
-		print(training_set[BMU[each][1]])		
-		
 		new_neuron = neurony[BMU[each][0]] + eta * (training_set[BMU[each][1]] - neurony[BMU[each][0]])
-		
-		print("nowy neuron")
-		print(new_neuron)
-
-		print("Przypisanie do tablicy neuronów")
 		neurony[BMU[each][0]] = new_neuron
-		print(neurony[BMU[each][0]])
+		
+#print("Nauczone neurony")
+# print(neurony)
 
-print("Nauczone neurony")
-print(neurony)
+# Nauczone neurony w intach i bez dubli
+slownik = [list(x) for x in set(tuple(x) for x in neurony.astype(int))]
+#print(*slownik)
 
+slownik = np.array(slownik)
+print("Wygenerowano słownik złożony z %s elementów."% len(slownik))
 
-# array([ 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15])
-# >>> A = A.reshape(4,4)
-
-# print("stary neuron")
-# print(neurony[BMU[0][0]])
-
-# print("ramka:")
-# print(puzzle[BMU[0][1]])
-
-# new_neuron = neurony[BMU[0][0]] + eta * (neurony[BMU[0][0]]-puzzle[BMU[0][1]])
-# print("nowy neuron")
-# print(new_neuron)
-
-
-# print(training_set[0])
-
-# print(sum(neurony[0]*training_set[0]))
-# print(sum(neurony[1]*training_set[0]))
-# print(sum(neurony[2]*training_set[0]))
-# print(sum(neurony[3]*training_set[0]))
-# print(sum(neurony[4]*training_set[0]))
-# print(sum(neurony[5]*training_set[0]))
-# print(sum(neurony[6]*training_set[0]))
-# print(sum(neurony[7]*training_set[0]))
+indeksy = []
+for i in range(len(puzzle)):
+	norm_ramka = v_norm(puzzle[i].flatten())
+	winner = []
+	for j in range(len(slownik)):
+		norm_neuron = v_norm(slownik[j])
+		winner.append([i, j, norm_neuron.dot(norm_ramka)])
+	indeksy.append((max(winner, key=lambda x: x[2]))[1]) # tabela indeksów ze wskazaniem na element [1] ze zwycieskiej puli
 
 
+# reshape 
+wiersz_long=[]
+for i in range(len(indeksy)):
+	#print("i"+ str(i))
+	wiersz_long.append(np.uint8(slownik[indeksy[i]]).reshape(frame, frame))
 
-# mając neurony startowe, możemy zacząć proces "uczenia"
+wiersz = np.concatenate(wiersz_long, axis=1)
 
+#print(wiersz[:,:64].shape)
 
+print(wiersz.shape)
 
-# print(puzzle_norm[14])
-# print(puzzle_norm[24])
-# print(puzzle_norm[48])
+wiersze = [] 
+for x in range(0, wiersz.shape[1], frame*ile_kolumn):
+	wiersze.append(wiersz[:,x:x+(frame*ile_kolumn)])	
 
-# cv2.imshow("14",puzzle[24])
-# cv2.imshow("24",puzzle[22])
-# cv2.imshow("48",puzzle[28])
-
-#print(sum(puzzle[neuron].flatten()))
-
-#x = rand.randrange(0, int((512/frame)**2), 1)
-#print(x)
-
-#cv2.imshow('Kafelek', puzzle[3])
-# x.append(Red[0:4,0:4].flatten())
-# x.append(Red[4:8,4:8].flatten())
-# x.append(Red[8:12,8:12].flatten())
-# x.append(Red[12:16,12:16].flatten())
-# x.append(Red[16:20,16:20].flatten())
-
-# print(x[0])
-# print(x[1])
-# print(x[2])
-# print(x[3])
-# print(x[4])
-
-# print(sum(x[4].flatten()))
-# y=[]
+#print(wiersze[2].shape)
 
 
-# z=[[1,1,1,1,1,1,1,1],
-# 	[2,2,2,2,2,2,2,2],
-# 	[3,3,3,3,3,3,3,3],
-# 	[4,4,4,4,4,4,4,4]]
+final_picture = np.concatenate(wiersze, axis=0)
 
-# z=np.array(z)
-# xz=[]
+cv2.imshow("Final_picture", final_picture)
 
-# xz.append(z[0:4,0:4])
-
-
-# #xz.append(z[4:8,4:8].flatten())
-
-# print(xz)
-
-
-
-#cv2.waitKey(0)
-#cv2.destroyAllWindows()
+cv2.waitKey(0)
+cv2.destroyAllWindows()
